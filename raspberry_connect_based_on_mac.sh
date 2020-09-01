@@ -7,7 +7,7 @@ if ! type nmap &> /dev/null; then
   test -e /etc/debian_version && sudo apt install -y nmap || sudo yum install -y nmap
 fi
 
-raspi_mac='DC:A6:32:3C:4C:C0'
+raspi_mac='AE:C7:12:C4:8E:FF'
 raspi_passwd='putRaspberryPasswordHere'
 
 function get_raspi_ip {
