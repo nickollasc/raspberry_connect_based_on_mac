@@ -6,6 +6,8 @@
 raspi_mac='E:C7:12:C4:8E:FF'
 raspi_passwd='putRaspberryPasswordHere'
 
+test $( whoami ) != "root" && echo erro: only root can execute this script && exit
+
 if ! type nmap &> /dev/null || ! type sshpass &> /dev/null; then # install packages if it not installed
   test -e /etc/debian_version && sudo apt install -y nmap sshpass || sudo yum install -y nmap sshpass
 fi
@@ -13,7 +15,7 @@ fi
 function get_raspi_ip {
   lan_ip=$( ip route | awk '/default/ { split( $3, a, "." ); print a[1]"."a[2]"."a[3] }' )	  # get lan ip like 192.168.0
 
-  sudo nmap -sn ${lan_ip}.1-254									| # ping scan for a ip range 
+  nmap -sn ${lan_ip}.1-254									| # ping scan for a ip range 
   egrep -o '[[:digit:].]{3,}$| [[:xdigit:]:]{6,}'						| # filter only IP and MAC address
   awk 'BEGIN{ m=0 } { if ( $1 ~ /^[[:digit:].]{3,}/ ) m++; print m, $0 }'			| # create a relationship between IP and MAC 
   awk '{ a[$1] = a[$1] FS substr( $0, index( $0,$2 ) ) } END{ for( i in a ) print i a[i] }'	| # print IP and MAC on same line
