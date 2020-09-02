@@ -1,10 +1,11 @@
 #!/bin/bash
 # connect to raspberry doing a network scanner looking for your mac
 # Usage: raspi_connect.sh [X] 
-# Depends: nmap, sshpass, ssh
+# Depends: x2x package installed only in raspberry
 
-if ! type nmap &> /dev/null; then
-  test -e /etc/debian_version && sudo apt install -y nmap || sudo yum install -y nmap
+# install packages if it not installed
+if ! type nmap &> /dev/null || ! type sshpass &> /dev/null; then
+  test -e /etc/debian_version && sudo apt install -y nmap sshpass || sudo yum install -y nmap sshpass
 fi
 
 raspi_mac='AE:C7:12:C4:8E:FF'
@@ -20,15 +21,37 @@ function get_raspi_ip {
   awk '$3 == "'$raspi_mac'" { print $2 }'							  # get raspberry IP based on MAC
 }
 
-if [ "$1" == "X" ] ; then 
-  raspi_ip=$( get_raspi_ip )
-  sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &	# connect to raspberry
-  sleep 1 
-  ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip DISPLAY=:0 'setxkbmap pt'	# send a command to raspberry changing keyboard layout
+function set_ssh_to_use_an_already_established_connection {
+  if [ ! -e ~/.ssh/config ];then
+	cat > ~/.ssh/config <<-EOF
+	ControlMaster auto
+	ControlPath ~/.ssh/control:%h:%p:%r
+	EOF
+  fi
+}
+
+raspi_ip=$( get_raspi_ip ) 
+
+test -z $raspi_ip && echo erro: IP not found for this Mac: $raspi_mac && exit
+
+if [ "$1" == "X" ]; then 
+  # connect to X11 on raspberry
+  if [ -e ~/.ssh/pi_rsa ];then
+    ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &
+  else
+    sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &
+  fi
+  sleep 2 
+  # send a command to raspberry changing keyboard layout
+  set_ssh_to_use_an_already_established_connection
+  ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip DISPLAY=:0 'setxkbmap pt'
   reset
-  echo 'raspi connection ready!'
-elif [ -e ~/.ssh/pi_rsa ];then
-  test $# -eq 0 && ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no pi@$( get_raspi_ip ) || ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no pi@$1
+  echo 'X11 raspberry connection ready!'
 else 
-  ssh -o StrictHostKeyChecking=no pi@$( get_raspi_ip )
+  # connect to raspberry
+  if [ -e ~/.ssh/pi_rsa ];then
+    ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no pi@$raspi_ip
+  else
+    sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no pi@$raspi_ip 
+  fi
 fi
