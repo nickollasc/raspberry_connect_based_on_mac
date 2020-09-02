@@ -3,11 +3,10 @@
 # Usage: raspi_connect.sh [X] 
 # Depends: x2x package installed only in raspberry
 
-raspi_mac='AE:C7:12:C4:8E:FF'
+raspi_mac='E:C7:12:C4:8E:FF'
 raspi_passwd='putRaspberryPasswordHere'
 
-# install packages if it not installed
-if ! type nmap &> /dev/null || ! type sshpass &> /dev/null; then
+if ! type nmap &> /dev/null || ! type sshpass &> /dev/null; then # install packages if it not installed
   test -e /etc/debian_version && sudo apt install -y nmap sshpass || sudo yum install -y nmap sshpass
 fi
 
@@ -30,28 +29,29 @@ function set_ssh_to_use_an_already_established_connection {
   fi
 }
 
+function change_keyboard_layout_on_remote_X11 {
+  sleep 2 
+  set_ssh_to_use_an_already_established_connection
+  ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip DISPLAY=:0 'setxkbmap pt'
+  reset
+  echo 'X11 raspberry connection ready, move mouse pointer to other Monitor/TV!'
+}
+
 raspi_ip=$( get_raspi_ip ) 
 
 test -z $raspi_ip && echo erro: IP not found for this Mac: $raspi_mac && exit
 
-if [ "$1" == "X" ]; then 
-  # connect to X11 on raspberry
-  if [ -e ~/.ssh/pi_rsa ];then
-    ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &
-  else
-    sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &
-  fi
-  sleep 2 
-  # send a command to raspberry changing keyboard layout
-  set_ssh_to_use_an_already_established_connection
-  ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip DISPLAY=:0 'setxkbmap pt'
-  reset
-  echo 'X11 raspberry connection ready!'
-else 
-  # connect to raspberry
-  if [ -e ~/.ssh/pi_rsa ];then
-    ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no pi@$raspi_ip
-  else
-    sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no pi@$raspi_ip 
-  fi
+if [ "$1" == "X" ] && [ -e ~/.ssh/pi_rsa ]; then # connect to X11 on raspberry using ssh key
+  ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &
+  change_keyboard_layout_on_remote_X11
+
+elif [ "$1" == "X" ] && [ ! -e ~/.ssh/pi_rsa ]; then # connect to X11 on raspberry using sshpass
+  sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no -X pi@$raspi_ip x2x -north -north -to :0 &
+  change_keyboard_layout_on_remote_X11
+
+elif [ -e ~/.ssh/pi_rsa ];then # connect to raspberry and use terminal using ssh key
+  ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no pi@$raspi_ip
+
+else # connect to raspberry and use terminal using sshpass
+  sshpass -p "$raspi_passwd" ssh -o StrictHostKeyChecking=no pi@$raspi_ip 
 fi
