@@ -3,13 +3,13 @@
 # Usage: raspi_connect.sh [X] 
 # Depends: x2x package installed only in raspberry
 
+raspi_mac='AE:C7:12:C4:8E:FF'
+raspi_passwd='putRaspberryPasswordHere'
+
 # install packages if it not installed
 if ! type nmap &> /dev/null || ! type sshpass &> /dev/null; then
   test -e /etc/debian_version && sudo apt install -y nmap sshpass || sudo yum install -y nmap sshpass
 fi
-
-raspi_mac='AE:C7:12:C4:8E:FF'
-raspi_passwd='putRaspberryPasswordHere'
 
 function get_raspi_ip {
   lan_ip=$( ip route | awk '/default/ { split( $3, a, "." ); print a[1]"."a[2]"."a[3] }' )	  # get lan ip like 192.168.0
