@@ -3,7 +3,7 @@
 # Usage: raspi_connect.sh [X] 
 # Depends: x2x package installed only in raspberry
 
-declare -A info=( ['mac']='EE:C7:12:C4:8E:FF' ['user']='pi' ['passwd']='123456' )	# raspberry info
+declare -A info=( ['mac']='DC:A6:32:3C:4C:C0' ['user']='pi' ['passwd']='1q2w3e' )	# raspberry info
 
 test $( whoami ) != "root" && echo -e "[erro]: only root can execute this script\ntry: sudo $0" && exit
 
@@ -18,7 +18,8 @@ function get_raspi_ip {
   egrep -o '[[:digit:].]{3,}$| [[:xdigit:]:]{6,}'						| # filter only IP and MAC address
   awk 'BEGIN{ m=0 } { if ( $1 ~ /^[[:digit:].]{3,}/ ) m++; print m, $0 }'			| # create a relationship between IP and MAC 
   awk '{ a[$1] = a[$1] FS substr( $0, index( $0,$2 ) ) } END{ for( i in a ) print i a[i] }'	| # print IP and MAC on same line
-  awk '$3 == "'$1'" { print $2 }'								  # get raspberry IP based on MAC
+  awk '$3 == "'$1'" { print $2 }'								| # get raspberry IP based on MAC
+  tee /tmp/raspi_ip										  # save MAC on cache file
 }
 
 function change_keyboard_layout_on_remote_X11 {
@@ -28,9 +29,10 @@ function change_keyboard_layout_on_remote_X11 {
   echo 'X11 raspberry connection ready, move mouse pointer to other Monitor/TV!'
 }
 
-ip=$( get_raspi_ip ${info['mac']} )	# get raspberry IP passing mac as parameter
+# get raspberry IP from cache file OR passing mac as parameter
+test -e /tmp/raspi_ip && ip=$( cat /tmp/raspi_ip ) || ip=$( get_raspi_ip ${info['mac']} )
 
-test -z $ip && echo erro: IP not found for this Mac: ${info['mac']} && exit
+test -s $ip && echo erro: IP not found for this Mac: ${info['mac']} && rm -f /tmp/raspi_ip && exit
 
 if [ "$1" == "X" ] && [ -e ~/.ssh/pi_rsa ]; then # connect to X11 on raspberry using ssh key
   ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no -X ${info['user']}@$ip x2x -north -north -to :0 &
