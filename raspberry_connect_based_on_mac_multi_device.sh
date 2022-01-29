@@ -28,8 +28,9 @@ function check_and_set_last_ip { # if last known ip has the defined mac address 
 function get_raspi_ip {
   lan_ip=$( ip route | awk '/default/ { split( $3, a, "." ); print a[1]"."a[2]"."a[3] }' )	  # get lan ip like 192.168.0
 
-  sudo nmap -sn ${lan_ip}.1-254									| # ping scan for a ip range 
-  egrep -o '[[:digit:].]{3,}$| [[:xdigit:]:]{6,}'						| # filter only IP and MAC address
+  sudo nmap -sn ${lan_ip}.2-254									| # ping scan for a ip range 
+  egrep -o '[[:digit:].()]{3,}$| [[:xdigit:]:]{6,}'						| # filter only IP and MAC address
+  sed 's/[()]//g'										| # remove () chars from IPs	
   awk 'BEGIN{ m=0 } { if ( $1 ~ /^[[:digit:].]{3,}/ ) m++; print m, $0 }'			| # create a relationship between IP and MAC 
   awk '{ a[$1] = a[$1] FS substr( $0, index( $0,$2 ) ) } END{ for( i in a ) print i a[i] }'	| # print IP and MAC on same line
   awk '$3 == "'${info['mac']}'" { print $2 }'							| # get raspberry IP based on MAC
@@ -54,12 +55,12 @@ test -s $ip && echo erro: IP not found for this Mac: ${info['mac']} && rm -f /tm
 
 if [ "$1" == "X" ] && [ -e ~/.ssh/pi_rsa ]; then # connect to X11 on raspberry using ssh key
   rm -f /tmp/control*
-  ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no -X ${info['user']}@$ip x2x -north -north -to :0 &
+  ssh -i ~/.ssh/pi_rsa -o StrictHostKeyChecking=no -X ${info['user']}@$ip x2x -north -to :0 &
   change_keyboard_layout_on_remote_X11
 
 elif [ "$1" == "X" ] && [ ! -e ~/.ssh/pi_rsa ]; then # connect to X11 on raspberry using sshpass
   rm -f /tmp/control*
-  sshpass -p "${info['passwd']}" ssh -o StrictHostKeyChecking=no -X ${info['user']}@$ip x2x -north -north -to :0 &
+  sshpass -p "${info['passwd']}" ssh -o StrictHostKeyChecking=no -X ${info['user']}@$ip x2x -north -to :0 &
   change_keyboard_layout_on_remote_X11
 
 elif [ -e ~/.ssh/pi_rsa ];then # connect to raspberry and use terminal using ssh key
